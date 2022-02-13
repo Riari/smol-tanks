@@ -1,0 +1,25 @@
+[gd_resource type="Shader" format=2]
+
+[resource]
+code = "shader_type canvas_item;
+
+uniform float vignette_outer_radius = 0.8;
+uniform float vignette_inner_radius = 0.4;
+uniform float vignette_intensity = 0.4;
+
+vec4 calc_vignette(vec2 pixel_size, vec4 frag_coord, sampler2D tex, vec2 uv) {
+	vec2 resolution = 1.0 / pixel_size;
+
+	vec2 position = (frag_coord.xy / resolution.xy) - vec2(0.5);
+
+	float len = length(position);
+	float vignette = smoothstep(vignette_outer_radius, vignette_inner_radius, len);
+	vec4 viewport_color = texture(tex, uv);
+
+	return vec4(mix(viewport_color.rgb, viewport_color.rgb * vignette, vignette_intensity), 1.0);
+}
+
+void fragment() {
+	vec4 vignette_color = calc_vignette(SCREEN_PIXEL_SIZE, FRAGCOORD, TEXTURE, UV);
+	COLOR = vignette_color;
+}"

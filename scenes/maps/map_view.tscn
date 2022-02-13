@@ -1,0 +1,187 @@
+[gd_scene load_steps=13 format=2]
+
+[ext_resource path="res://scripts/playerview_camera.gd" type="Script" id=1]
+[ext_resource path="res://assets/materials/main_viewport_mat.tres" type="Material" id=2]
+[ext_resource path="res://assets/tilesets/default.tres" type="TileSet" id=3]
+[ext_resource path="res://scripts/ui/minimap.gd" type="Script" id=4]
+[ext_resource path="res://scenes/tanks/blue_level_1.tscn" type="PackedScene" id=5]
+[ext_resource path="res://assets/textures/ui/panel.png" type="Texture" id=6]
+[ext_resource path="res://scripts/unit_control.gd" type="Script" id=7]
+[ext_resource path="res://scripts/ui/hud_overlay.gd" type="Script" id=8]
+[ext_resource path="res://scripts/map_overlay.gd" type="Script" id=9]
+
+[sub_resource type="Shader" id=1]
+code = "shader_type canvas_item;
+
+uniform vec2 camera_pos;
+uniform vec2 camera_size;
+uniform vec4 camera_overlay_color : hint_color;
+
+uniform sampler2D map_viewport;
+uniform vec2 map_size;
+
+uniform vec2 scale;
+uniform float resolution;
+
+bool is_camera_frag(vec2 at) {
+	// Normalise the camera position and size
+	vec2 pos = camera_pos / map_size;
+	vec2 size = camera_size / map_size;
+
+	// Invert the fragment position (Y coords in shaders are flipped)
+	at.y = 1.0 - at.y;
+
+	// Test position against camera pos/size
+	bool in_x = at.x >= pos.x && at.x <= pos.x + size.x;
+	bool in_y = at.y >= pos.y && at.y <= pos.y + size.y;
+	
+	return in_x && in_y;
+}
+
+void fragment() {
+	// Scale UV coords to sample the whole viewport
+	float dx = scale.x * (1.0 / resolution);
+	float dy = scale.y * (1.0 / resolution);
+	vec2 coords = vec2(dx * floor(UV.x / dx), dy * floor(UV.y / dy));
+	vec4 color = texture(map_viewport, coords);
+
+	// Add the camera overlay color if we're in the camera area
+	if (is_camera_frag(UV)) {
+		color = mix(color, color + camera_overlay_color, 0.1);
+	}
+
+	COLOR = color;
+}"
+
+[sub_resource type="ViewportTexture" id=3]
+viewport_path = NodePath("PlayerView/Viewport/Map/Viewport")
+
+[sub_resource type="ShaderMaterial" id=2]
+resource_local_to_scene = true
+shader = SubResource( 1 )
+shader_param/camera_pos = null
+shader_param/camera_size = Vector2( 1024, 600 )
+shader_param/camera_overlay_color = Color( 1, 1, 1, 0.156863 )
+shader_param/map_size = Vector2( 1408, 896 )
+shader_param/scale = Vector2( 10, 10 )
+shader_param/resolution = 512.0
+shader_param/map_viewport = SubResource( 3 )
+
+[node name="MapView" type="Node2D"]
+
+[node name="PlayerView" type="ViewportContainer" parent="."]
+material = ExtResource( 2 )
+margin_right = 1024.0
+margin_bottom = 600.0
+mouse_filter = 1
+stretch = true
+__meta__ = {
+"_edit_use_anchors_": true
+}
+
+[node name="Viewport" type="Viewport" parent="PlayerView"]
+size = Vector2( 1024, 600 )
+handle_input_locally = false
+hdr = false
+usage = 0
+render_target_update_mode = 3
+
+[node name="Camera" type="Camera2D" parent="PlayerView/Viewport"]
+anchor_mode = 0
+current = true
+smoothing_enabled = true
+smoothing_speed = 10.0
+script = ExtResource( 1 )
+map_viewport = NodePath("../Map/Viewport")
+minimap_viewport_container = NodePath("../../../HUD/Panel/Minimap")
+
+[node name="Map" type="ViewportContainer" parent="PlayerView/Viewport"]
+margin_right = 1408.0
+margin_bottom = 896.0
+mouse_filter = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Viewport" type="Viewport" parent="PlayerView/Viewport/Map"]
+size = Vector2( 1408, 896 )
+handle_input_locally = false
+render_target_update_mode = 3
+
+[node name="TileMap" type="TileMap" parent="PlayerView/Viewport/Map/Viewport"]
+tile_set = ExtResource( 3 )
+cell_size = Vector2( 128, 128 )
+format = 1
+tile_data = PoolIntArray( 0, 0, 0, 1, 0, 1, 2, 0, 0, 3, 0, 65536, 4, 0, 0, 5, 0, 7, 6, 0, 196608, 7, 0, 131072, 8, 0, 196608, 9, 0, 131073, 10, 0, 131072, 65536, 0, 65536, 65537, 0, 1, 65538, 0, 65536, 65539, 0, 0, 65540, 0, 65536, 65541, 0, 7, 65542, 0, 131072, 65543, 0, 131072, 65544, 0, 131072, 65545, 0, 131073, 65546, 0, 196608, 131072, 0, 0, 131073, 0, 1, 131074, 0, 0, 131075, 0, 65536, 131076, 0, 0, 131077, 0, 7, 131078, 0, 196608, 131079, 0, 196608, 131080, 0, 131072, 131081, 0, 131073, 131082, 0, 131072, 196608, 0, 2, 196609, 0, 65538, 196610, 0, 2, 196611, 0, 2, 196612, 0, 2, 196613, 0, 131081, 196614, 0, 131074, 196615, 0, 131074, 196616, 0, 131074, 196617, 0, 196610, 196618, 0, 131074, 262144, 0, 0, 262145, 0, 1, 262146, 0, 65536, 262147, 0, 0, 262148, 0, 65536, 262149, 0, 7, 262150, 0, 196608, 262151, 0, 131072, 262152, 0, 196608, 262153, 0, 131073, 262154, 0, 131072, 327680, 0, 0, 327681, 0, 1, 327682, 0, 0, 327683, 0, 65536, 327684, 0, 0, 327685, 0, 7, 327686, 0, 131072, 327687, 0, 196608, 327688, 0, 131072, 327689, 0, 131073, 327690, 0, 131072, 393216, 0, 0, 393217, 0, 1, 393218, 0, 65536, 393219, 0, 0, 393220, 0, 65536, 393221, 0, 7, 393222, 0, 196608, 393223, 0, 131072, 393224, 0, 196608, 393225, 0, 131073, 393226, 0, 196608 )
+
+[node name="Overlay" type="Node2D" parent="PlayerView/Viewport/Map/Viewport"]
+script = ExtResource( 9 )
+command_blip_color = Color( 1, 0, 0.164706, 0.470588 )
+command_blip_duration = 0.1
+
+[node name="PlayerUnits" type="Node2D" parent="PlayerView/Viewport/Map/Viewport"]
+script = ExtResource( 7 )
+drag_tolerance = 20.0
+camera_path = NodePath("../../../Camera")
+
+[node name="Blue_Level_1" parent="PlayerView/Viewport/Map/Viewport/PlayerUnits" instance=ExtResource( 5 )]
+position = Vector2( 192, 96 )
+tilemap_path = NodePath("../../TileMap")
+
+[node name="HUD" type="Control" parent="."]
+margin_right = 1016.0
+margin_bottom = 600.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Overlay" type="Control" parent="HUD"]
+margin_right = 1024.0
+margin_bottom = 600.0
+script = ExtResource( 8 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+unit_selection_border_color = Color( 0.513726, 0.513726, 0.513726, 0.498039 )
+unit_selection_fill_color = Color( 0.513726, 0.513726, 0.513726, 0.498039 )
+
+[node name="Panel" type="NinePatchRect" parent="HUD"]
+margin_left = 840.0
+margin_top = 16.0
+margin_right = 1008.0
+margin_bottom = 119.0
+texture = ExtResource( 6 )
+patch_margin_left = 2
+patch_margin_top = 2
+patch_margin_right = 2
+patch_margin_bottom = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Minimap" type="ViewportContainer" parent="HUD/Panel"]
+material = SubResource( 2 )
+margin_left = 8.0
+margin_top = 8.0
+margin_right = 160.0
+margin_bottom = 96.0
+rect_scale = Vector2( 1.00251, 1 )
+stretch = true
+script = ExtResource( 4 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+map_viewport = NodePath("../../../PlayerView/Viewport")
+
+[node name="Viewport" type="Viewport" parent="HUD/Panel/Minimap"]
+size = Vector2( 152, 88 )
+size_override_stretch = true
+own_world = true
+handle_input_locally = false
+hdr = false
+disable_3d = true
+usage = 0
+render_target_update_mode = 3
+
+[connection signal="selection_rect_updated" from="PlayerView/Viewport/Map/Viewport/PlayerUnits" to="HUD/Overlay" method="_on_unit_selection_rect_updated"]
+[connection signal="units_command_issued" from="PlayerView/Viewport/Map/Viewport/PlayerUnits" to="PlayerView/Viewport/Map/Viewport/Overlay" method="_on_units_command_issued"]
